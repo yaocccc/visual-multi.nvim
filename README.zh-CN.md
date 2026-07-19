@@ -1,0 +1,142 @@
+# visual-multi.nvim
+
+<p align="center">
+  <a href="./README.md">English</a> · <strong>简体中文</strong>
+</p>
+
+一个小巧、原生 Lua 实现的 **Neovim 0.12+** 多光标插件。
+
+> [!IMPORTANT]
+> 本项目由原仓库
+> [`mg979/vim-visual-multi`](https://github.com/mg979/vim-visual-multi)
+> 演变而来。当前 Lua 重写版本在用户需求驱动下完全由 AI 实现，仅适配最新版
+> Neovim，不兼容 Vim，也不以兼容旧版 `vim-visual-multi` 为目标。
+
+当前实现使用 Extmark 和细粒度 Buffer 更新事件。
+
+## 开发动机
+
+1. **仅保留核心功能。** 移除旧兼容层和非必要高级功能，专注于多光标的选择、
+   导航与同步编辑流程。
+2. **大幅优化性能。** 使用原生 Lua、Extmark、批量创建选区、二分查找当前
+   光标，以及无需逐次全量重绘的串行 Insert 更新。
+
+### 大致性能对比
+
+以下数据来自同一台机器、Neovim 0.12.4 的单次 Headless 测试。每行包含一个
+`foo`，测试操作为选择全部匹配项。该数据用于展示大致差异，并非严谨的跨设备
+基准测试。
+
+| 匹配数量 | 原仓库 | Lua 重写版 | 大致提升 |
+| ---: | ---: | ---: | ---: |
+| 200 | 62.1 ms | 8.3 ms | 7.5 倍 |
+| 500 | 111.5 ms | 16.4 ms | 6.8 倍 |
+| 1,000 | 166.4 ms | 30.4 ms | 5.5 倍 |
+| 2,000 | 357.3 ms | 55.8 ms | 6.4 倍 |
+
+大量光标同步 Insert 时也不会在每次按键后重建全部高亮，并通过串行事件队列
+处理快速输入。
+
+## 功能
+
+- 选择光标下的单词，并选择其下一个或上一个匹配项
+- 使用已有 Extend 选区作为“选择下一个/全部匹配项”的搜索内容
+- 批量创建所有文本匹配项，不逐项重绘或移动光标
+- 垂直添加光标，或在当前位置添加光标
+- 导航、跳过和移除光标
+- 支持 Normal、Insert 和 Extend 三种模式
+- 使用 `<Tab>` 切换 Normal / Extend 模式
+- 默认状态栏使用柔和浅灰背景和灰黑文字
+- 状态栏模式及当前/总数序号跟随 Neovim 真实光标所在选区
+- 同步执行 `i`、`a`、`I` 和 `A` 插入
+- 同步 Insert 模式下使用 `<C-v>` 粘贴各光标寄存器或未命名寄存器
+- Insert 更新使用批量 Extmark 读取、串行输入队列，且不会每次按键全量重绘
+- Insert 光标高亮会跟踪后一个字符，但不会遮住字符内容
+- 从 Extend 进入 Insert 时，`i` 在选区开头插入，`a` 在选区之后插入，均不删除选区
+- Extend 模式执行 yank 后返回 Normal 模式
+- 同步移动、选择、复制、删除、修改、粘贴和撤销
+- 支持 UTF-8 光标高亮
+- 每个 Buffer 使用独立会话，每次多光标编辑合并为一个撤销块
+
+## 安装
+
+使用 `lazy.nvim`：
+
+```lua
+{
+  "yaocccc/visual-multi.nvim",
+  opts = {},
+}
+```
+
+即使没有显式调用 `setup()`，插件也会使用默认配置加载。
+
+## 默认快捷键
+
+### 启动会话
+
+| 快捷键 | 操作 |
+| --- | --- |
+| `<C-n>` | 选择单词 / 下一个匹配项 |
+| `<C-Down>` | 向下添加光标 |
+| `<C-Up>` | 向上添加光标 |
+| `<leader>mc` | 在当前位置添加光标 |
+| `<leader>ma` | 选择所有匹配项 |
+
+### 会话期间
+
+| 快捷键 | 操作 |
+| --- | --- |
+| `n` / `N` | 下一个 / 上一个匹配项 |
+| `q` / `Q` | 跳过 / 移除当前选区 |
+| `]` / `[` | 聚焦下一个 / 上一个光标 |
+| `<Tab>` | 切换 Normal / Extend 模式 |
+| `h j k l w b e 0 ^ $ gg G` | 移动所有光标或扩展所有选区 |
+| `i a I A` | 进入同步 Insert 模式 |
+| `<C-v>` | 在 Insert 模式下向所有光标粘贴 |
+| `c d x y p u` | 编辑所有选区 |
+| `<Esc>` | 结束会话 |
+
+## 配置
+
+```lua
+require("visual-multi").setup({
+  wrap = true,
+  case_sensitive = true,
+  statusline = function(info)
+    local text = info.text or info.pattern or ""
+    local bar = ("%%#VisualMultiStatusMode# %s %%#VisualMultiStatusSep#│ "
+      .. "%%#VisualMultiStatusCount#%d/%d"):format(info.mode, info.current, info.total)
+    if text ~= "" then
+      bar = bar .. " %#VisualMultiStatusSep#│ %#VisualMultiStatusText#" .. text
+    end
+    return bar .. " %#VisualMultiStatus#%="
+  end,
+  mappings = {
+    find_next = "<C-n>",
+    add_cursor_down = "<C-Down>",
+    add_cursor_up = "<C-Up>",
+    add_cursor = "<leader>mc",
+    select_all = "<leader>ma",
+    toggle_extend = "<Tab>",
+    insert_paste = "<C-v>",
+    clear = "<Esc>",
+  },
+})
+```
+
+将快捷键设为 `false` 即可禁用。设置 `statusline = false` 可禁用状态栏替换。
+状态栏格式化函数会接收 `mode`、`current`、`total`、`pattern` 和当前选区
+`text` 字段。
+
+## 命令
+
+- `:VisualMultiNext`
+- `:VisualMultiAll`
+- `:VisualMultiAdd`
+- `:VisualMultiClear`
+- `:VisualMultiInfo`
+
+## 许可证
+
+MIT
