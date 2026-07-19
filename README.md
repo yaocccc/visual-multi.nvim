@@ -49,7 +49,7 @@ every keypress and process rapid input through a serialized event queue.
 - navigate, skip, and remove cursors
 - Normal, Insert, and Extend modes
 - `<Tab>` switching between Normal and Extend modes
-- soft light-gray background with gray-black text for the default statusline style
+- compact flat statusline with a built-in gray palette and distinct mode, count, and selection text
 - statusline mode and current/total index follow the region under the real cursor
 - synchronized `i`, `a`, `I`, and `A` insertion
 - `<C-v>` pastes the per-cursor or unnamed register during synchronized Insert
@@ -81,17 +81,18 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 | Mapping | Action |
 | --- | --- |
 | `<C-n>` | Select word / next occurrence |
-| `<C-Down>` | Add cursor below |
-| `<C-Up>` | Add cursor above |
-| `<leader>mc` | Add cursor at current position |
-| `<leader>ma` | Select all occurrences |
+| `<C-d>` | Select all occurrences |
+| `<C-Left>` / `<C-Right>` | Start or extend a selection |
+| `<C-Up>` / `<C-Down>` | Add cursor above / below |
+| `<C-x>` | Add cursor at current position |
+| `<C-w>` | Add the word at current position |
 
 ### During a session
 
 | Mapping | Action |
 | --- | --- |
 | `n` / `N` | Next / previous occurrence |
-| `q` / `Q` | Skip / remove current region |
+| `q` | Remove the region under the real cursor |
 | `]` / `[` | Focus next / previous region |
 | `<Tab>` | Toggle Normal / Extend mode |
 | `h j k l w b e 0 ^ $ gg G` | Move cursors or extend selections |
@@ -106,26 +107,54 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 require("visual-multi").setup({
   wrap = true,
   case_sensitive = true,
-  statusline = function(info)
-    local text = info.text or info.pattern or ""
-    local bar = ("%%#VisualMultiStatusMode# %s %%#VisualMultiStatusSep#│ "
-      .. "%%#VisualMultiStatusCount#%d/%d"):format(info.mode, info.current, info.total)
-    if text ~= "" then
-      bar = bar .. " %#VisualMultiStatusSep#│ %#VisualMultiStatusText#" .. text
-    end
-    return bar .. " %#VisualMultiStatus#%="
-  end,
   mappings = {
     find_next = "<C-n>",
-    add_cursor_down = "<C-Down>",
+    select_all = "<C-d>",
+    select_left = "<C-Left>",
+    select_right = "<C-Right>",
     add_cursor_up = "<C-Up>",
-    add_cursor = "<leader>mc",
-    select_all = "<leader>ma",
+    add_cursor_down = "<C-Down>",
+    add_cursor = "<C-x>",
+    add_cursor_word = "<C-w>",
     toggle_extend = "<Tab>",
+    skip_region = false,
+    remove_region = "q",
     insert_paste = "<C-v>",
+    undo = "u",
+    redo = "<C-r>",
     clear = "<Esc>",
   },
 })
+```
+
+### Highlights
+
+The built-in palette is used when `highlights` is omitted. Every role accepts
+either an existing highlight group name or a color table; table-based settings
+are reapplied after `ColorScheme`:
+
+```lua
+highlights = {
+  cursor = "MyCursorGroup",
+  cursor_active = { bg = "#dfdf87", fg = "#4e4e4e", bold = true },
+  insert = { bg = "#4c4e50" },
+  insert_active = { bg = "#4c4e50" },
+  selection = { bg = "#005faf" },
+  selection_active = { bg = "#87afff", fg = "#4e4e4e" },
+}
+```
+
+### Statusline
+
+The default statusline is a compact flat bar: its background ends with its
+content instead of filling the row, and it has no font-specific glyph dependency.
+To override it, pass a formatter:
+
+```lua
+statusline = function(info)
+  return ("%%#MyVisualMultiBar# %s %d/%d %%*")
+    :format(info.mode, info.current, info.total)
+end
 ```
 
 Set a mapping to `false` to disable it. Set `statusline = false` to disable the

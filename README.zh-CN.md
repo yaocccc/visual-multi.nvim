@@ -46,7 +46,7 @@
 - 导航、跳过和移除光标
 - 支持 Normal、Insert 和 Extend 三种模式
 - 使用 `<Tab>` 切换 Normal / Extend 模式
-- 默认状态栏使用柔和浅灰背景和灰黑文字
+- 默认状态栏采用内置灰色系紧凑扁平样式，并区分模式、序号和选区文本
 - 状态栏模式及当前/总数序号跟随 Neovim 真实光标所在选区
 - 同步执行 `i`、`a`、`I` 和 `A` 插入
 - 同步 Insert 模式下使用 `<C-v>` 粘贴各光标寄存器或未命名寄存器
@@ -78,17 +78,18 @@
 | 快捷键 | 操作 |
 | --- | --- |
 | `<C-n>` | 选择单词 / 下一个匹配项 |
-| `<C-Down>` | 向下添加光标 |
-| `<C-Up>` | 向上添加光标 |
-| `<leader>mc` | 在当前位置添加光标 |
-| `<leader>ma` | 选择所有匹配项 |
+| `<C-d>` | 选择所有匹配项 |
+| `<C-Left>` / `<C-Right>` | 开始或扩展选区 |
+| `<C-Up>` / `<C-Down>` | 向上 / 向下添加光标 |
+| `<C-x>` | 在当前位置添加光标 |
+| `<C-w>` | 添加当前位置的单词 |
 
 ### 会话期间
 
 | 快捷键 | 操作 |
 | --- | --- |
 | `n` / `N` | 下一个 / 上一个匹配项 |
-| `q` / `Q` | 跳过 / 移除当前选区 |
+| `q` | 移除真实光标所在的选区 |
 | `]` / `[` | 聚焦下一个 / 上一个光标 |
 | `<Tab>` | 切换 Normal / Extend 模式 |
 | `h j k l w b e 0 ^ $ gg G` | 移动所有光标或扩展所有选区 |
@@ -103,26 +104,52 @@
 require("visual-multi").setup({
   wrap = true,
   case_sensitive = true,
-  statusline = function(info)
-    local text = info.text or info.pattern or ""
-    local bar = ("%%#VisualMultiStatusMode# %s %%#VisualMultiStatusSep#│ "
-      .. "%%#VisualMultiStatusCount#%d/%d"):format(info.mode, info.current, info.total)
-    if text ~= "" then
-      bar = bar .. " %#VisualMultiStatusSep#│ %#VisualMultiStatusText#" .. text
-    end
-    return bar .. " %#VisualMultiStatus#%="
-  end,
   mappings = {
     find_next = "<C-n>",
-    add_cursor_down = "<C-Down>",
+    select_all = "<C-d>",
+    select_left = "<C-Left>",
+    select_right = "<C-Right>",
     add_cursor_up = "<C-Up>",
-    add_cursor = "<leader>mc",
-    select_all = "<leader>ma",
+    add_cursor_down = "<C-Down>",
+    add_cursor = "<C-x>",
+    add_cursor_word = "<C-w>",
     toggle_extend = "<Tab>",
+    skip_region = false,
+    remove_region = "q",
     insert_paste = "<C-v>",
+    undo = "u",
+    redo = "<C-r>",
     clear = "<Esc>",
   },
 })
+```
+
+### 高亮
+
+未传入 `highlights` 时使用内置配色。每个位置都可以传入已有高亮组名或颜色表；
+颜色表配置会在 `ColorScheme` 后自动恢复：
+
+```lua
+highlights = {
+  cursor = "MyCursorGroup",
+  cursor_active = { bg = "#dfdf87", fg = "#4e4e4e", bold = true },
+  insert = { bg = "#4c4e50" },
+  insert_active = { bg = "#4c4e50" },
+  selection = { bg = "#005faf" },
+  selection_active = { bg = "#87afff", fg = "#4e4e4e" },
+}
+```
+
+### 状态栏
+
+默认 Bar 为紧凑扁平样式，背景仅覆盖实际内容，不会填满整行，也不依赖特殊字体。
+如需覆盖默认样式，可传入格式化函数：
+
+```lua
+statusline = function(info)
+  return ("%%#MyVisualMultiBar# %s %d/%d %%*")
+    :format(info.mode, info.current, info.total)
+end
 ```
 
 将快捷键设为 `false` 即可禁用。设置 `statusline = false` 可禁用状态栏替换。
