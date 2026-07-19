@@ -2,6 +2,7 @@ local M = {}
 
 local config = require("visual-multi.config")
 local Session = require("visual-multi.session")
+local util = require("visual-multi.util")
 
 local loaded = false
 local global_mappings = {}
@@ -86,28 +87,30 @@ local function define_commands()
   end, { desc = "Show current multi-cursor state" })
 end
 
-local function global_map(lhs, callback, desc)
+local function global_map(mode, lhs, callback, desc)
   if lhs and lhs ~= "" then
-    vim.keymap.set("n", lhs, callback, { silent = true, desc = "Visual Multi: " .. desc })
-    global_mappings[#global_mappings + 1] = lhs
+    vim.keymap.set(mode, lhs, callback, { silent = true, desc = "Visual Multi: " .. desc })
+    global_mappings[#global_mappings + 1] = { mode = mode, lhs = lhs }
   end
 end
 
 local function define_global_mappings()
-  for _, lhs in ipairs(global_mappings) do
-    pcall(vim.keymap.del, "n", lhs)
+  for _, mapping in ipairs(global_mappings) do
+    pcall(vim.keymap.del, mapping.mode, mapping.lhs)
   end
   global_mappings = {}
 
   local maps = config.options.mappings
-  global_map(maps.find_next, M.find_next, "find next")
-  global_map(maps.select_all, M.select_all, "select all")
-  global_map(maps.select_left, function() M.select_horizontal(-1) end, "select left")
-  global_map(maps.select_right, function() M.select_horizontal(1) end, "select right")
-  global_map(maps.add_cursor_down, function() M.add_cursor_vertical(1) end, "add cursor down")
-  global_map(maps.add_cursor_up, function() M.add_cursor_vertical(-1) end, "add cursor up")
-  global_map(maps.add_cursor, M.add_cursor, "add cursor")
-  global_map(maps.add_cursor_word, M.add_cursor_word, "add word")
+  global_map("n", maps.find_next, M.find_next, "find next")
+  global_map("n", maps.select_all, M.select_all, "select all")
+  global_map("n", maps.select_left, function() M.select_horizontal(-1) end, "select left")
+  global_map("n", maps.select_right, function() M.select_horizontal(1) end, "select right")
+  global_map("n", maps.add_cursor_down, function() M.add_cursor_vertical(1) end, "add cursor down")
+  global_map("n", maps.add_cursor_up, function() M.add_cursor_vertical(-1) end, "add cursor up")
+  global_map("n", maps.add_cursor, M.add_cursor, "add cursor")
+  global_map("n", maps.add_cursor_word, M.add_cursor_word, "add word")
+  global_map("x", maps.find_next, function() M.from_visual(false) end, "find next from selection")
+  global_map("x", maps.select_all, function() M.from_visual(true) end, "select all from selection")
 end
 
 function M.setup(opts)
@@ -154,6 +157,32 @@ end
 
 function M.select_horizontal(direction)
   current_session(true):select_horizontal(direction)
+end
+
+function M.from_visual(select_all)
+  if vim.fn.mode() ~= "v" then
+    vim.notify("visual-multi: only characterwise Visual selections are supported", vim.log.levels.WARN)
+    return
+  end
+
+  local region = vim.fn.getregionpos(vim.fn.getpos("v"), vim.fn.getpos("."), {
+    type = "v",
+    exclusive = vim.o.selection == "exclusive",
+    eol = true,
+  })
+  if #region ~= 1 then
+    vim.notify("visual-multi: multiline Visual selections are not supported", vim.log.levels.WARN)
+    return
+  end
+
+  local first, last = region[1][1], region[1][2]
+  local start_pos = { row = first[2] - 1, col = math.max(0, first[3] - 1) }
+  local last_pos = { row = last[2] - 1, col = math.max(0, last[3] - 1) }
+  local line = vim.api.nvim_buf_get_lines(0, last_pos.row, last_pos.row + 1, true)[1] or ""
+  local finish_pos = { row = last_pos.row, col = util.char_end(line, last_pos.col) }
+
+  vim.cmd.normal({ args = { vim.keycode("<Esc>") }, bang = true })
+  current_session(true):start_from_selection(start_pos, finish_pos, select_all)
 end
 
 function M.clear()

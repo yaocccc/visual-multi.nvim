@@ -468,6 +468,21 @@ function Session:select_horizontal(direction)
   self:move(direction > 0 and "l" or "h", 1)
 end
 
+function Session:start_from_selection(start_pos, finish_pos, select_all)
+  local text = util.get_text(self.buf, start_pos, finish_pos)
+  if text == "" or text:find("\n", 1, true) then
+    return false
+  end
+  self.pattern = text
+  self:add_selection(start_pos, finish_pos)
+  if select_all then
+    self:select_all()
+  else
+    self:_search(1)
+  end
+  return true
+end
+
 function Session:navigate(delta)
   if #self.regions == 0 then
     return

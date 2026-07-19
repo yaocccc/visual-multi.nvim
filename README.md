@@ -40,10 +40,29 @@ The numbers are indicative rather than a rigorous cross-machine benchmark.
 Large synchronized Insert sessions also avoid full highlight reconstruction on
 every keypress and process rapid input through a serialized event queue.
 
+## Demo
+
+![Native Visual selection to synchronized Insert](./demo/demo.gif)
+
+The demo covers three workflows:
+
+1. Select `Color` with native characterwise Visual mode, press `<C-d>` to select
+   every occurrence, and append `Token` synchronously.
+2. Press `<C-n>` repeatedly to add `userName` occurrences, then insert `active_`
+   at every selection.
+3. Add vertical cursors with `<C-Down>` and append to three adjacent lines.
+
+Re-record it after installing [VHS](https://github.com/charmbracelet/vhs), `ttyd`,
+and `ffmpeg`:
+
+```sh
+./scripts/record-demo.sh
+```
+
 ## Features
 
 - select the word under the cursor and its next/previous occurrences
-- use an existing Extend selection as the pattern for next/all occurrence selection
+- use a native characterwise Visual selection as the starting pattern for next/all occurrence selection
 - batch-create all literal occurrences without per-selection redraw or cursor movement
 - add cursors vertically or at the current position
 - navigate, skip, and remove cursors
@@ -82,6 +101,8 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 | --- | --- |
 | `<C-n>` | Select word / next occurrence |
 | `<C-d>` | Select all occurrences |
+| Native Visual + `<C-n>` | Use the selection and add the next occurrence |
+| Native Visual + `<C-d>` | Use the selection and select all occurrences |
 | `<C-Left>` / `<C-Right>` | Start or extend a selection |
 | `<C-Up>` / `<C-Down>` | Add cursor above / below |
 | `<C-x>` | Add cursor at current position |
@@ -100,6 +121,10 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 | `<C-v>` | Paste at every cursor in Insert mode |
 | `c d x y p u` | Edit all regions |
 | `<Esc>` | End the session |
+
+Native Visual initialization currently accepts single-line characterwise
+selections. `<C-Left>` and `<C-Right>` remain available for plugin-managed
+selection expansion.
 
 ## Configuration
 
