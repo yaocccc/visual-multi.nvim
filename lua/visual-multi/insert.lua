@@ -188,7 +188,12 @@ function M.start(session, kind)
 
   session:render()
   session:focus()
-  vim.cmd("startinsert")
+  local line = vim.api.nvim_buf_get_lines(session.buf, active_pos.row, active_pos.row + 1, true)[1] or ""
+  if #line > 0 and active_pos.col >= #line then
+    vim.cmd("startinsert!")
+  else
+    vim.cmd("startinsert")
+  end
 end
 
 function M.paste(session)
