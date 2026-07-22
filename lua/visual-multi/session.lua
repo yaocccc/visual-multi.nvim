@@ -588,17 +588,42 @@ function Session:_edits_for_regions(kind, values)
   return edits
 end
 
-function Session:_apply_edits(edits, _)
+function Session:_deduplicate_regions()
+  local active_region = self.regions[self.active]
+  local seen, regions, active = {}, {}, 1
+  for _, region in ipairs(self.regions) do
+    local pos = self:_mark_pos(region.end_id)
+    if pos then
+      local key = pos.row .. ":" .. pos.col
+      if not seen[key] then
+        regions[#regions + 1] = region
+        seen[key] = #regions
+      else
+        vim.api.nvim_buf_del_extmark(self.buf, track_ns, region.start_id)
+        vim.api.nvim_buf_del_extmark(self.buf, track_ns, region.end_id)
+      end
+      if region == active_region then
+        active = seen[key]
+      end
+    end
+  end
+  self.regions = regions
+  self.active = math.min(active, #regions)
+end
+
+function Session:_apply_edits(edits, _, deduplicate)
   for index, edit in ipairs(edits) do
     if index > 1 then
       pcall(vim.cmd, "silent! undojoin")
     end
+    local start_pos = util.clamp_position(self.buf, edit.start.row, edit.start.col)
+    local finish_pos = util.clamp_position(self.buf, edit.finish.row, edit.finish.col)
     vim.api.nvim_buf_set_text(
       self.buf,
-      edit.start.row,
-      edit.start.col,
-      edit.finish.row,
-      edit.finish.col,
+      start_pos.row,
+      start_pos.col,
+      finish_pos.row,
+      finish_pos.col,
       util.split_text(edit.text)
     )
   end
@@ -609,6 +634,9 @@ function Session:_apply_edits(edits, _)
     self:_set_positions(edit.region, start_pos, start_pos)
   end
   self:sort_regions()
+  if deduplicate then
+    self:_deduplicate_regions()
+  end
   self:render()
   self:focus()
 end
@@ -646,6 +674,33 @@ function Session:delete(enter_insert)
   if enter_insert then
     self:begin_insert("i")
   end
+end
+
+function Session:delete_to_eol()
+  local edits, values = {}, {}
+  for index, region in ipairs(self.regions) do
+    local _, head = self:raw_positions(region)
+    if head then
+      local line = vim.api.nvim_buf_get_lines(self.buf, head.row, head.row + 1, true)[1] or ""
+      local finish_pos = { row = head.row, col = #line }
+      values[index] = util.get_text(self.buf, head, finish_pos)
+      edits[#edits + 1] = {
+        region = region,
+        start = head,
+        finish = finish_pos,
+        text = "",
+      }
+    end
+  end
+  table.sort(edits, function(left, right)
+    return util.compare_pos(left.start, right.start) > 0
+  end)
+  self.register = values
+  if values[1] then
+    vim.fn.setreg('"', values[1], "v")
+  end
+  self:_apply_edits(edits, false, true)
+  self:begin_insert("i")
 end
 
 function Session:paste()

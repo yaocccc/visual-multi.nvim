@@ -119,6 +119,8 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 | `h j k l w b e 0 ^ $ gg G` | Move cursors or extend selections |
 | `i a I A` | Enter synchronized Insert mode |
 | `<C-v>` | Paste at every cursor in Insert mode |
+| `o` / `O` | Open a new line below / above every cursor and enter Insert mode |
+| `D` | Delete from every cursor to the end of its line and enter Insert mode |
 | `c d x y p u` | Edit all regions |
 | `<Esc>` | End the session |
 

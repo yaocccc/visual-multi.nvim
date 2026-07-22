@@ -57,6 +57,64 @@ local function prepare(session, kind)
   end
 end
 
+local function prepare_new_lines(session, kind)
+  local groups = {}
+  local active_region = session.regions[session.active]
+  for _, region in ipairs(session.regions) do
+    local _, head = session:raw_positions(region)
+    if head then
+      local group = groups[head.row]
+      if not group then
+        group = { row = head.row, region = region, active = false }
+        groups[head.row] = group
+      elseif group.region ~= region then
+        vim.api.nvim_buf_del_extmark(session.buf, session.track_ns, region.start_id)
+        vim.api.nvim_buf_del_extmark(session.buf, session.track_ns, region.end_id)
+      end
+      if region == active_region then
+        group.active = true
+      end
+    end
+  end
+
+  local ordered = vim.tbl_values(groups)
+  table.sort(ordered, function(left, right)
+    return left.row > right.row
+  end)
+
+  session.syncing = true
+  for index, group in ipairs(ordered) do
+    if index > 1 then
+      pcall(vim.cmd, "silent! undojoin")
+    end
+    local line = vim.api.nvim_buf_get_lines(session.buf, group.row, group.row + 1, true)[1] or ""
+    local indent = vim.bo[session.buf].autoindent and (line:match("^%s*") or "") or ""
+    local insert_row = kind == "o" and group.row + 1 or group.row
+    vim.api.nvim_buf_set_lines(session.buf, insert_row, insert_row, false, { indent })
+    group.mark = vim.api.nvim_buf_set_extmark(session.buf, session.track_ns, insert_row, #indent, {
+      right_gravity = false,
+    })
+  end
+  session.syncing = false
+
+  local regions, active_id = {}, nil
+  for _, group in ipairs(ordered) do
+    local mark = vim.api.nvim_buf_get_extmark_by_id(session.buf, session.track_ns, group.mark, {})
+    if #mark > 0 then
+      local pos = { row = mark[1], col = mark[2] }
+      session:_set_positions(group.region, pos, pos, true)
+      vim.api.nvim_buf_del_extmark(session.buf, session.track_ns, group.mark)
+      regions[#regions + 1] = group.region
+      if group.active then
+        active_id = group.region.id
+      end
+    end
+  end
+  session.regions = regions
+  session.mode = "normal"
+  session:sort_regions(active_id)
+end
+
 local function changed_text(buf, start_row, start_col, new_end_row, new_end_col)
   local end_row = start_row + new_end_row
   local end_col = new_end_row == 0 and start_col + new_end_col or new_end_col
@@ -130,7 +188,11 @@ function M.start(session, kind)
     return
   end
 
-  prepare(session, kind)
+  if kind == "o" or kind == "O" then
+    prepare_new_lines(session, kind)
+  else
+    prepare(session, kind)
+  end
   session.mode = "insert"
   session.inserting = true
   session._insert_generation = (session._insert_generation or 0) + 1

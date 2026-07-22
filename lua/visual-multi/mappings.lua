@@ -74,6 +74,10 @@ function M.activate(session)
     map(session, "n", keys[name], action[1], action[2])
   end
 
+  map(session, "n", "D", function() session:delete_to_eol() end, "delete to end of line")
+  map(session, "n", "o", function() session:begin_insert("o") end, "open line below")
+  map(session, "n", "O", function() session:begin_insert("O") end, "open line above")
+
   for _, motion in ipairs({ "h", "j", "k", "l", "w", "b", "e", "0", "^", "$", "gg", "G" }) do
     local key = motion
     map(session, "n", key, function() session:move(key) end, "move " .. key)
