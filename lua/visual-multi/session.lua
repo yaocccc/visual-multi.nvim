@@ -938,6 +938,50 @@ function Session:move(motion, count)
   self:focus()
 end
 
+function Session:toggle_char_case()
+  if self.mode ~= "normal" then
+    return
+  end
+  local edits = {}
+  for _, region in ipairs(self.regions) do
+    local _, pos = self:raw_positions(region)
+    if pos then
+      local line = vim.api.nvim_buf_get_lines(self.buf, pos.row, pos.row + 1, true)[1] or ""
+      if pos.col < #line then
+        local finish = { row = pos.row, col = util.char_end(line, pos.col) }
+        local char = util.get_text(self.buf, pos, finish)
+        local lower, upper = vim.fn.tolower(char), vim.fn.toupper(char)
+        local replacement = char == lower and char ~= upper and upper or lower
+        edits[#edits + 1] = {
+          region = region,
+          start = pos,
+          finish = finish,
+          text = replacement,
+        }
+      end
+    end
+  end
+  table.sort(edits, function(left, right)
+    return util.compare_pos(left.start, right.start) > 0
+  end)
+  if #edits > 0 then
+    self:_apply_edits(edits, false)
+  end
+end
+
+function Session:change_selection_case(uppercase)
+  if self.mode ~= "extend" then
+    return
+  end
+  local values = {}
+  for index, region in ipairs(self.regions) do
+    local start_pos, finish_pos = self:positions(region)
+    local text = util.get_text(self.buf, start_pos, finish_pos)
+    values[index] = uppercase and vim.fn.toupper(text) or vim.fn.tolower(text)
+  end
+  self:_apply_edits(self:_edits_for_regions("replace", values), false)
+end
+
 function Session:change_number(delta)
   local key = vim.api.nvim_replace_termcodes(delta > 0 and "<C-a>" or "<C-x>", true, false, true)
   local regions = vim.list_slice(self.regions)

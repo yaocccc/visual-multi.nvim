@@ -45,7 +45,7 @@ every keypress and process rapid input through a serialized event queue.
 
 ![Native Visual selection to synchronized Insert](./demo/demo.gif)
 
-The demo covers four workflows:
+The demo covers five workflows:
 
 1. Select `Color` with native characterwise Visual mode, press `<C-d>` to select
    every occurrence, and append `Token` synchronously.
@@ -54,6 +54,10 @@ The demo covers four workflows:
 3. Add vertical cursors with `<C-Down>` and append to three adjacent lines.
 4. Press `v` repeatedly to expand from characters to words, quotes, and enclosing
    calls, then replace every selected call synchronously.
+5. Yank different words, paste each value after its matching `=`, and continue
+   editing all pasted values together.
+
+The floating panel in the top-right corner displays the recent keystrokes.
 
 Re-record it after installing [VHS](https://github.com/charmbracelet/vhs), `ttyd`,
 and `ffmpeg`:
@@ -67,7 +71,7 @@ and `ffmpeg`:
 - Normal, Insert, and Extend modes with synchronized multi-cursor editing.
 - Create selections from the current word, native Visual text, vertical positions,
   or all literal occurrences.
-- Synchronized movement, insert, yank, delete, change, paste, undo, `D`, `o`, and `O`.
+- Synchronized movement, insert, yank, delete, case conversion, paste, undo, `D`, `o`, and `O`.
 - Semantic region expansion and one-level shrink with session-local `v` / `V`.
 - Fast Lua and Extmark core with batched selection creation and queued Insert updates.
 - Compact statusline that follows the region under the real cursor.
@@ -114,7 +118,10 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 | `<C-v>` | Paste at every cursor in Insert mode |
 | `o` / `O` | Open a new line below / above every cursor and enter Insert mode |
 | `D` | Delete from every cursor to the end of its line and enter Insert mode |
-| `c d x y p u` | Edit all regions |
+| `~` | In Normal, toggle the character case under every cursor |
+| `u` / `U` | In Extend, convert every selection to lowercase / uppercase |
+| `u` / `<C-r>` | In Normal, undo / redo |
+| `c d x y p` | Edit all regions |
 | `<Esc>` | Restore the original Normal cursor positions, or end the session from Normal |
 
 Native Visual initialization currently accepts single-line characterwise

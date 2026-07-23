@@ -52,11 +52,15 @@ function M.activate(session)
     decrease = { function() session:change_number(-1) end, "decrease number" },
     undo = {
       function()
-        vim.cmd.undo()
-        session:render()
-        session:focus()
+        if session.mode == "extend" then
+          session:change_selection_case(false)
+        else
+          vim.cmd.undo()
+          session:render()
+          session:focus()
+        end
       end,
-      "undo",
+      "undo or lowercase selections",
     },
     redo = {
       function()
@@ -73,6 +77,16 @@ function M.activate(session)
   end
 
   map(session, "n", "<Esc>", function() session:escape() end, "leave mode or clear")
+  map(session, "n", "~", function() session:toggle_char_case() end, "toggle character case")
+  map(session, "n", "U", function()
+    if session.mode == "extend" then
+      session:change_selection_case(true)
+    else
+      vim.cmd.normal({ args = { "U" }, bang = true })
+      session:render()
+      session:focus()
+    end
+  end, "uppercase selections")
   map(session, "n", "v", function() session:expand_selection() end, "expand selection")
   map(session, "n", "V", function() session:shrink_selection() end, "shrink selection")
   map(session, "n", "D", function() session:delete_to_eol() end, "delete to end of line")

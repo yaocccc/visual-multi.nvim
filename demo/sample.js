@@ -21,3 +21,10 @@ let west = "idle";
 // 演示 4：重复按 v 逐级扩大选区，然后同步编辑每个完整调用参数。
 const theme = value("dark");
 const panel = value("wide");
+
+// Demo 5: yank different words, paste each value after =, then edit them together.
+// 演示 5：复制不同单词，在对应等号后分别粘贴，再同步修改。
+const sourceOne = alpha;
+const sourceTwo = bravo;
+let targetOne =
+let targetTwo =
