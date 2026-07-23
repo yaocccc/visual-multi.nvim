@@ -56,7 +56,7 @@ Re-record it after installing [VHS](https://github.com/charmbracelet/vhs), `ttyd
 and `ffmpeg`:
 
 ```sh
-./scripts/record-demo.sh
+./demo/record-demo.sh
 ```
 
 ## Features

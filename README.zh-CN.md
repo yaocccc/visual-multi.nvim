@@ -51,7 +51,7 @@
 安装 [VHS](https://github.com/charmbracelet/vhs)、`ttyd` 和 `ffmpeg` 后可重新录制：
 
 ```sh
-./scripts/record-demo.sh
+./demo/record-demo.sh
 ```
 
 ## 功能
