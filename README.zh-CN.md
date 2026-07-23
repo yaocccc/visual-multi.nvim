@@ -62,7 +62,8 @@
 - 垂直添加光标，或在当前位置添加光标
 - 导航、跳过和移除光标
 - 支持 Normal、Insert 和 Extend 三种模式
-- 使用 `<Tab>` 切换 Normal / Extend 模式
+- Extend 模式按 `<Esc>` 返回 Normal，Normal 模式再次按下则结束会话
+- 会话内使用 `v` / `V` 进行语义扩展和回退一级
 - 默认状态栏采用内置灰色系紧凑扁平样式，并区分模式、序号和选区文本
 - 状态栏模式及当前/总数序号跟随 Neovim 真实光标所在选区
 - 同步执行 `i`、`a`、`I` 和 `A` 插入
@@ -110,17 +111,18 @@
 | `n` / `N` | 下一个 / 上一个匹配项 |
 | `q` | 移除真实光标所在的选区 |
 | `]` / `[` | 聚焦下一个 / 上一个光标 |
-| `<Tab>` | 切换 Normal / Extend 模式 |
+| `v` / `V` | 进入或扩大 Extend 选区 / 回退一级 |
 | `h j k l w b e 0 ^ $` | 移动所有光标或扩展所有选区 |
 | `i a I A` | 进入同步 Insert 模式 |
 | `<C-v>` | 在 Insert 模式下向所有光标粘贴 |
 | `o` / `O` | 在每个光标下方 / 上方新建一行并进入 Insert 模式 |
 | `D` | 从每个光标处删除到对应行尾并进入 Insert 模式 |
 | `c d x y p u` | 编辑所有选区 |
-| `<Esc>` | 结束会话 |
+| `<Esc>` | Extend 返回 Normal；Normal 下结束会话 |
 
 原生 Visual 初始化目前支持单行字符级选区；`<C-Left>` 和 `<C-Right>` 仍可用于
-插件自身管理的选区扩展。`h`、`l`、`w`、`b`、`e` 不会跨出各光标当前所在行；
+插件自身管理的选区扩展。会话中重复按 `v` 会按照“字符 → 单词 → 引号/括号 →
+整行”扩大选区，`V` 回退到上一级。`h`、`l`、`w`、`b`、`e` 不会跨出各光标当前所在行；
 多光标会话不会覆盖 `gg` 和 `G`。
 
 ## 配置
@@ -138,13 +140,11 @@ require("visual-multi").setup({
     add_cursor_down = "<C-Down>",
     add_cursor = "<C-x>",
     add_cursor_word = "<C-w>",
-    toggle_extend = "<Tab>",
     skip_region = false,
     remove_region = "q",
     insert_paste = "<C-v>",
     undo = "u",
     redo = "<C-r>",
-    clear = "<Esc>",
   },
 })
 ```

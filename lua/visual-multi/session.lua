@@ -20,6 +20,49 @@ local function normalized(a, b)
   return b, a
 end
 
+local function enclosing_ranges(line, start_col, finish_col)
+  local ranges = {}
+  for open, close in pairs({ ["("] = ")", ["["] = "]", ["{"] = "}" }) do
+    local stack = {}
+    for index = 1, #line do
+      local char = line:sub(index, index)
+      if char == open then
+        stack[#stack + 1] = index - 1
+      elseif char == close and #stack > 0 then
+        local opening = table.remove(stack)
+        local ending = index
+        if opening <= start_col and ending >= finish_col then
+          ranges[#ranges + 1] = { start = opening, finish = ending }
+        end
+      end
+    end
+  end
+
+  for _, quote in ipairs({ '"', "'", "`" }) do
+    local opening, escaped = nil, false
+    for index = 1, #line do
+      local char = line:sub(index, index)
+      if char == quote and not escaped then
+        if opening then
+          local start, finish = opening - 1, index
+          if start <= start_col and finish >= finish_col then
+            ranges[#ranges + 1] = { start = start, finish = finish }
+          end
+          opening = nil
+        else
+          opening = index
+        end
+      end
+      if char == "\\" then
+        escaped = not escaped
+      else
+        escaped = false
+      end
+    end
+  end
+  return ranges
+end
+
 local function set_mark(buf, id, pos, gravity)
   return vim.api.nvim_buf_set_extmark(buf, track_ns, pos.row, pos.col, {
     id = id,
@@ -43,6 +86,7 @@ function Session.new(buf)
     mode = "normal",
     inserting = false,
     syncing = false,
+    expansion_stack = {},
     augroup = nil,
     saved_maps = {},
   }, Session)
@@ -264,7 +308,15 @@ function Session:focus()
   local region = self.regions[self.active]
   local head = region and self:_mark_pos(region.end_id)
   if head then
-    pcall(vim.api.nvim_win_set_cursor, 0, { head.row + 1, head.col })
+    local cursor = head
+    if self.mode == "extend" and head.col > 0 then
+      local line = vim.api.nvim_buf_get_lines(self.buf, head.row, head.row + 1, true)[1] or ""
+      local char = line:sub(head.col + 1, util.char_end(line, head.col))
+      if char == ")" or char == "]" or char == "}" then
+        cursor = util.previous_position(self.buf, head)
+      end
+    end
+    pcall(vim.api.nvim_win_set_cursor, 0, { cursor.row + 1, cursor.col })
   end
 end
 
@@ -438,22 +490,138 @@ function Session:add_word_at_current()
   end
 end
 
-function Session:toggle_extend()
-  if self.mode == "insert" then
+function Session:enter_extend()
+  if self.mode ~= "normal" then
     return
   end
-  if self.mode == "normal" then
-    self.mode = "extend"
+  self.expansion_stack = {}
+  self.mode = "extend"
+  self:sort_regions()
+  self:render()
+  self:focus()
+end
+
+function Session:exit_extend()
+  if self.mode ~= "extend" then
+    return
+  end
+  self.expansion_stack = {}
+  for _, region in ipairs(self.regions) do
+    local _, head = self:raw_positions(region)
+    if head then
+      self:_set_positions(region, head, head)
+    end
+  end
+  self.mode = "normal"
+  self:sort_regions()
+  self:render()
+  self:focus()
+end
+
+function Session:escape()
+  if self.mode == "extend" then
+    self:exit_extend()
   else
-    for _, region in ipairs(self.regions) do
-      local _, head = self:raw_positions(region)
-      if head then
-        self:_set_positions(region, head, head)
+    self:clear()
+  end
+end
+
+function Session:expand_selection()
+  if self.mode == "normal" then
+    self:enter_extend()
+    return
+  end
+  if self.mode ~= "extend" then
+    return
+  end
+
+  local snapshot, changes = {}, {}
+  for _, region in ipairs(self.regions) do
+    local anchor, head = self:raw_positions(region)
+    local start_pos, finish_pos = self:positions(region)
+    if anchor and start_pos then
+      snapshot[#snapshot + 1] = { id = region.id, anchor = anchor, head = head }
+      local candidate
+      if start_pos.row == finish_pos.row then
+        local line = vim.api.nvim_buf_get_lines(self.buf, start_pos.row, start_pos.row + 1, true)[1] or ""
+        local candidates = {}
+        local function add(start_col, finish_col)
+          local contains = start_col <= start_pos.col and finish_col >= finish_pos.col
+          local larger = start_col < start_pos.col or finish_col > finish_pos.col
+          if contains and larger then
+            candidates[#candidates + 1] = { start = start_col, finish = finish_col }
+          end
+        end
+
+        local word = util.word_at(self.buf, start_pos.row, math.min(start_pos.col, math.max(0, #line - 1)))
+        if word then
+          add(word.start.col, word.finish.col)
+        end
+        for _, range in ipairs(enclosing_ranges(line, start_pos.col, finish_pos.col)) do
+          add(range.start, range.finish)
+        end
+        add(0, #line)
+        table.sort(candidates, function(left, right)
+          return left.finish - left.start < right.finish - right.start
+        end)
+        if candidates[1] then
+          candidate = {
+            start = { row = start_pos.row, col = candidates[1].start },
+            finish = { row = start_pos.row, col = candidates[1].finish },
+          }
+        end
+      else
+        local last_line = vim.api.nvim_buf_get_lines(self.buf, finish_pos.row, finish_pos.row + 1, true)[1] or ""
+        candidate = {
+          start = { row = start_pos.row, col = 0 },
+          finish = { row = finish_pos.row, col = #last_line },
+        }
+      end
+
+      if candidate then
+        changes[#changes + 1] = { region = region, start = candidate.start, finish = candidate.finish }
       end
     end
-    self.mode = "normal"
   end
-  self:sort_regions()
+
+  if #changes == 0 then
+    return
+  end
+  self.expansion_stack[#self.expansion_stack + 1] = snapshot
+  local active_id = self.regions[self.active] and self.regions[self.active].id
+  for _, change in ipairs(changes) do
+    local head = change.finish.col > 0 and util.previous_position(self.buf, change.finish) or change.start
+    self:_set_positions(change.region, change.start, head)
+  end
+  self:sort_regions(active_id)
+  self:render()
+  self:focus()
+end
+
+function Session:shrink_selection()
+  if self.mode ~= "extend" then
+    return
+  end
+  local snapshot = table.remove(self.expansion_stack)
+  if not snapshot or #snapshot ~= #self.regions then
+    self.expansion_stack = {}
+    return
+  end
+
+  local by_id = {}
+  for _, saved in ipairs(snapshot) do
+    by_id[saved.id] = saved
+  end
+  local active_id = self.regions[self.active] and self.regions[self.active].id
+  for _, region in ipairs(self.regions) do
+    local saved = by_id[region.id]
+    if not saved then
+      self.expansion_stack = {}
+      return
+    end
+    self:_set_positions(region, saved.anchor, saved.head)
+  end
+  self:sort_regions(active_id)
   self:render()
   self:focus()
 end
@@ -463,7 +631,7 @@ function Session:select_horizontal(direction)
     self:add_cursor_at_current()
   end
   if self.mode ~= "extend" then
-    self:toggle_extend()
+    self:enter_extend()
   end
   self:move(direction > 0 and "l" or "h", 1)
 end
@@ -712,6 +880,7 @@ function Session:paste()
 end
 
 function Session:move(motion, count)
+  self.expansion_stack = {}
   count = count or vim.v.count1
   local active_id = self.regions[self.active] and self.regions[self.active].id
   local line_local = motion == "w" or motion == "b" or motion == "e" or motion == "h" or motion == "l"

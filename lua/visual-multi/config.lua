@@ -27,7 +27,6 @@ M.defaults = {
     add_cursor_word = "<C-w>",
     move_left = false,
     move_right = false,
-    toggle_extend = "<Tab>",
     next_region = "]",
     previous_region = "[",
     skip_region = false,
@@ -46,7 +45,6 @@ M.defaults = {
     decrease = "_",
     undo = "u",
     redo = "<C-r>",
-    clear = "<Esc>",
   },
   statusline = default_statusline,
   highlights = {

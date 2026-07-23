@@ -35,7 +35,6 @@ function M.activate(session)
     add_cursor_word = { function() session:add_word_at_current() end, "add word" },
     move_left = { function() session:move("h") end, "move left" },
     move_right = { function() session:move("l") end, "move right" },
-    toggle_extend = { function() session:toggle_extend() end, "toggle normal/extend" },
     next_region = { function() session:navigate(1) end, "next cursor" },
     previous_region = { function() session:navigate(-1) end, "previous cursor" },
     skip_region = { function() session:skip() end, "skip current" },
@@ -67,13 +66,15 @@ function M.activate(session)
       end,
       "redo",
     },
-    clear = { function() session:clear() end, "clear" },
   }
 
   for name, action in pairs(actions) do
     map(session, "n", keys[name], action[1], action[2])
   end
 
+  map(session, "n", "<Esc>", function() session:escape() end, "leave mode or clear")
+  map(session, "n", "v", function() session:expand_selection() end, "expand selection")
+  map(session, "n", "V", function() session:shrink_selection() end, "shrink selection")
   map(session, "n", "D", function() session:delete_to_eol() end, "delete to end of line")
   map(session, "n", "o", function() session:begin_insert("o") end, "open line below")
   map(session, "n", "O", function() session:begin_insert("O") end, "open line above")

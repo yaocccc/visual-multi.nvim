@@ -67,7 +67,8 @@ and `ffmpeg`:
 - add cursors vertically or at the current position
 - navigate, skip, and remove cursors
 - Normal, Insert, and Extend modes
-- `<Tab>` switching between Normal and Extend modes
+- `<Esc>` returns Extend to Normal; press it again in Normal to end the session
+- session-local `v` / `V` semantic expansion and one-level shrink
 - compact flat statusline with a built-in gray palette and distinct mode, count, and selection text
 - statusline mode and current/total index follow the region under the real cursor
 - synchronized `i`, `a`, `I`, and `A` insertion
@@ -115,18 +116,20 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 | `n` / `N` | Next / previous occurrence |
 | `q` | Remove the region under the real cursor |
 | `]` / `[` | Focus next / previous region |
-| `<Tab>` | Toggle Normal / Extend mode |
+| `v` / `V` | Enter or expand Extend selection / shrink one level |
 | `h j k l w b e 0 ^ $` | Move cursors or extend selections |
 | `i a I A` | Enter synchronized Insert mode |
 | `<C-v>` | Paste at every cursor in Insert mode |
 | `o` / `O` | Open a new line below / above every cursor and enter Insert mode |
 | `D` | Delete from every cursor to the end of its line and enter Insert mode |
 | `c d x y p u` | Edit all regions |
-| `<Esc>` | End the session |
+| `<Esc>` | Return Extend to Normal, or end the session from Normal |
 
 Native Visual initialization currently accepts single-line characterwise
 selections. `<C-Left>` and `<C-Right>` remain available for plugin-managed
-selection expansion. The `h`, `l`, `w`, `b`, and `e` motions stay within each
+selection expansion. In a session, repeated `v` expands from character to word,
+quotes/brackets, and the whole line; `V` restores the previous level. The `h`,
+`l`, `w`, `b`, and `e` motions stay within each
 cursor's current line; `gg` and `G` are not overridden during a session.
 
 ## Configuration
@@ -144,13 +147,11 @@ require("visual-multi").setup({
     add_cursor_down = "<C-Down>",
     add_cursor = "<C-x>",
     add_cursor_word = "<C-w>",
-    toggle_extend = "<Tab>",
     skip_region = false,
     remove_region = "q",
     insert_paste = "<C-v>",
     undo = "u",
     redo = "<C-r>",
-    clear = "<Esc>",
   },
 })
 ```
