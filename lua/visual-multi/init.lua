@@ -13,29 +13,6 @@ local function current_session(create)
 end
 
 local function define_highlights()
-  vim.api.nvim_set_hl(0, "VisualMultiCursor", {
-    default = true,
-    bg = "#87afff",
-    fg = "#4e4e4e",
-  })
-  vim.api.nvim_set_hl(0, "VisualMultiActive", {
-    default = true,
-    bg = "#dfdf87",
-    fg = "#4e4e4e",
-  })
-  vim.api.nvim_set_hl(0, "VisualMultiInsert", {
-    default = true,
-    bg = "#4c4e50",
-  })
-  vim.api.nvim_set_hl(0, "VisualMultiSelection", {
-    default = true,
-    bg = "#005faf",
-  })
-  vim.api.nvim_set_hl(0, "VisualMultiSelectionActive", {
-    default = true,
-    bg = "#87afff",
-    fg = "#4e4e4e",
-  })
   vim.api.nvim_set_hl(0, "VisualMultiStatus", {
     default = true,
     bg = "#d9dde3",

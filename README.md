@@ -157,20 +157,37 @@ require("visual-multi").setup({
 
 ### Highlights
 
-The built-in palette is used when `highlights` is omitted. Every role accepts
-either an existing highlight group name or a color table; table-based settings
-are reapplied after `ColorScheme`:
+Every color table is merged with its built-in defaults, so individual fields or
+roles can be overridden without repeating the rest. A highlight group name can
+still replace a role completely. Table-based settings are reapplied after
+`ColorScheme`.
+
+All configurable highlight roles and their defaults:
 
 ```lua
 highlights = {
-  cursor = "MyCursorGroup",
-  cursor_active = { bg = "#dfdf87", fg = "#4e4e4e", bold = true },
+  cursor = { bg = "#87afff", fg = "#4e4e4e" },
+  cursor_active = { bg = "#dfdf87", fg = "#4e4e4e" },
   insert = { bg = "#4c4e50" },
   insert_active = { bg = "#4c4e50" },
   selection = { bg = "#005faf" },
   selection_active = { bg = "#87afff", fg = "#4e4e4e" },
 }
 ```
+
+A partial override only needs the changed fields:
+
+```lua
+highlights = {
+  selection_active = {
+    bg = "#ffaf87", -- keeps the default fg = "#4e4e4e"
+  },
+  -- cursor = "MyCursorGroup", -- replaces the default cursor table
+}
+```
+
+The `*_active` roles affect only the region under the real cursor; the remaining
+regions use their non-active counterpart.
 
 ### Statusline
 

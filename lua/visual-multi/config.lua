@@ -48,39 +48,70 @@ M.defaults = {
   },
   statusline = default_statusline,
   highlights = {
-    cursor = "VisualMultiCursor",
-    cursor_active = "VisualMultiActive",
-    insert = "VisualMultiInsert",
-    insert_active = "VisualMultiInsert",
-    selection = "VisualMultiSelection",
-    selection_active = "VisualMultiSelectionActive",
+    cursor = { bg = "#87afff", fg = "#4e4e4e" },
+    cursor_active = { bg = "#dfdf87", fg = "#4e4e4e" },
+    insert = { bg = "#4c4e50" },
+    insert_active = { bg = "#4c4e50" },
+    selection = { bg = "#005faf" },
+    selection_active = { bg = "#87afff", fg = "#4e4e4e" },
   },
 }
 
-local custom_highlight_groups = {
-  cursor = "VisualMultiCustomCursor",
-  cursor_active = "VisualMultiCustomActive",
-  insert = "VisualMultiCustomInsert",
-  insert_active = "VisualMultiCustomInsertActive",
-  selection = "VisualMultiCustomSelection",
-  selection_active = "VisualMultiCustomSelectionActive",
+local highlight_groups = {
+  cursor = "VisualMultiCursor",
+  cursor_active = "VisualMultiActive",
+  insert = "VisualMultiInsert",
+  insert_active = "VisualMultiInsertActive",
+  selection = "VisualMultiSelection",
+  selection_active = "VisualMultiSelectionActive",
 }
 
 M.options = vim.deepcopy(M.defaults)
 M.highlight_specs = {}
+M.configured = false
 
 function M.setup(opts)
-  M.options = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
+  if opts == nil and M.configured then
+    return M.options
+  end
+
+  local input = vim.deepcopy(opts or {})
+  local user_highlights = input.highlights
+  input.highlights = nil
+  M.options = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), input)
+  M.options.highlights = {}
   M.highlight_specs = {}
-  for role, group in pairs(custom_highlight_groups) do
-    local value = M.options.highlights[role]
+
+  if user_highlights ~= nil and type(user_highlights) ~= "table" then
+    error("highlights must be a table")
+  end
+  for role in pairs(user_highlights or {}) do
+    if not highlight_groups[role] then
+      error(("unknown highlight role: %s"):format(role))
+    end
+  end
+
+  for role, group in pairs(highlight_groups) do
+    local custom = user_highlights and user_highlights[role] or nil
+    local value
+    if custom == nil then
+      value = vim.deepcopy(M.defaults.highlights[role])
+    elseif type(custom) == "table" then
+      value = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults.highlights[role]), custom)
+    else
+      value = custom
+    end
+
     if type(value) == "table" then
-      M.highlight_specs[group] = vim.deepcopy(value)
+      M.highlight_specs[group] = value
       M.options.highlights[role] = group
-    elseif type(value) ~= "string" then
+    elseif type(value) == "string" then
+      M.options.highlights[role] = value
+    else
       error(("highlights.%s must be a highlight group name or table"):format(role))
     end
   end
+  M.configured = M.configured or opts ~= nil
   return M.options
 end
 

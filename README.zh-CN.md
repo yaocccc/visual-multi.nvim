@@ -147,19 +147,35 @@ require("visual-multi").setup({
 
 ### 高亮
 
-未传入 `highlights` 时使用内置配色。每个位置都可以传入已有高亮组名或颜色表；
-颜色表配置会在 `ColorScheme` 后自动恢复：
+每个颜色表都会与内置默认值合并，因此可以只覆盖某个字段或某个位置，无需重复其余
+配置；也可以传入高亮组名，完整替换对应位置。颜色表会在 `ColorScheme` 后自动恢复。
+
+所有可配置高亮及其默认值：
 
 ```lua
 highlights = {
-  cursor = "MyCursorGroup",
-  cursor_active = { bg = "#dfdf87", fg = "#4e4e4e", bold = true },
+  cursor = { bg = "#87afff", fg = "#4e4e4e" },
+  cursor_active = { bg = "#dfdf87", fg = "#4e4e4e" },
   insert = { bg = "#4c4e50" },
   insert_active = { bg = "#4c4e50" },
   selection = { bg = "#005faf" },
   selection_active = { bg = "#87afff", fg = "#4e4e4e" },
 }
 ```
+
+只修改部分字段时，无需重复默认值：
+
+```lua
+highlights = {
+  selection_active = {
+    bg = "#ffaf87", -- 未定义的 fg 继续使用默认值 "#4e4e4e"
+  },
+  -- cursor = "MyCursorGroup", -- 完整替换默认 cursor 配置
+}
+```
+
+所有 `*_active` 配置只作用于 Neovim 真实光标所在的当前区域，其他区域使用对应的
+非 active 配置。
 
 ### 状态栏
 
