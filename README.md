@@ -116,7 +116,7 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 | `q` | Remove the region under the real cursor |
 | `]` / `[` | Focus next / previous region |
 | `<Tab>` | Toggle Normal / Extend mode |
-| `h j k l w b e 0 ^ $ gg G` | Move cursors or extend selections |
+| `h j k l w b e 0 ^ $` | Move cursors or extend selections |
 | `i a I A` | Enter synchronized Insert mode |
 | `<C-v>` | Paste at every cursor in Insert mode |
 | `o` / `O` | Open a new line below / above every cursor and enter Insert mode |
@@ -126,7 +126,8 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 
 Native Visual initialization currently accepts single-line characterwise
 selections. `<C-Left>` and `<C-Right>` remain available for plugin-managed
-selection expansion.
+selection expansion. The `h`, `l`, `w`, `b`, and `e` motions stay within each
+cursor's current line; `gg` and `G` are not overridden during a session.
 
 ## Configuration
 

@@ -714,6 +714,8 @@ end
 function Session:move(motion, count)
   count = count or vim.v.count1
   local active_id = self.regions[self.active] and self.regions[self.active].id
+  local line_local = motion == "w" or motion == "b" or motion == "e" or motion == "h" or motion == "l"
+  local backward = motion == "b" or motion == "h"
   for _, region in ipairs(self.regions) do
     local anchor, head = self:raw_positions(region)
     if head then
@@ -721,6 +723,11 @@ function Session:move(motion, count)
       vim.cmd.normal({ args = { tostring(count) .. motion }, bang = true })
       local cursor = vim.api.nvim_win_get_cursor(0)
       local moved = { row = cursor[1] - 1, col = cursor[2] }
+      if line_local and moved.row ~= head.row then
+        local line = vim.api.nvim_buf_get_lines(self.buf, head.row, head.row + 1, true)[1] or ""
+        moved = (backward or line == "") and { row = head.row, col = 0 }
+          or util.previous_position(self.buf, { row = head.row, col = #line })
+      end
       if self.mode == "extend" then
         self:_set_positions(region, anchor, moved)
       else
