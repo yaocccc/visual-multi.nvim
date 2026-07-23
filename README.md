@@ -36,6 +36,7 @@ The numbers are indicative rather than a rigorous cross-machine benchmark.
 | 500 | 111.5 ms | 16.4 ms | 6.8× |
 | 1,000 | 166.4 ms | 30.4 ms | 5.5× |
 | 2,000 | 357.3 ms | 55.8 ms | 6.4× |
+| 10,000 | 1,669.4 ms | 246.7 ms | 6.8× |
 
 Large synchronized Insert sessions also avoid full highlight reconstruction on
 every keypress and process rapid input through a serialized event queue.
@@ -44,13 +45,15 @@ every keypress and process rapid input through a serialized event queue.
 
 ![Native Visual selection to synchronized Insert](./demo/demo.gif)
 
-The demo covers three workflows:
+The demo covers four workflows:
 
 1. Select `Color` with native characterwise Visual mode, press `<C-d>` to select
    every occurrence, and append `Token` synchronously.
 2. Press `<C-n>` repeatedly to add `userName` occurrences, then insert `active_`
    at every selection.
 3. Add vertical cursors with `<C-Down>` and append to three adjacent lines.
+4. Press `v` repeatedly to expand from characters to words, quotes, and enclosing
+   calls, then replace every selected call synchronously.
 
 Re-record it after installing [VHS](https://github.com/charmbracelet/vhs), `ttyd`,
 and `ffmpeg`:
@@ -61,25 +64,14 @@ and `ffmpeg`:
 
 ## Features
 
-- select the word under the cursor and its next/previous occurrences
-- use a native characterwise Visual selection as the starting pattern for next/all occurrence selection
-- batch-create all literal occurrences without per-selection redraw or cursor movement
-- add cursors vertically or at the current position
-- navigate, skip, and remove cursors
-- Normal, Insert, and Extend modes
-- `<Esc>` returns Extend to Normal; press it again in Normal to end the session
-- session-local `v` / `V` semantic expansion and one-level shrink
-- compact flat statusline with a built-in gray palette and distinct mode, count, and selection text
-- statusline mode and current/total index follow the region under the real cursor
-- synchronized `i`, `a`, `I`, and `A` insertion
-- `<C-v>` pastes the per-cursor or unnamed register during synchronized Insert
-- Insert updates use batched extmark reads, a serialized input queue, and no per-keystroke full redraw
-- Insert cursor highlights track the next character without covering its text
-- from Extend, `i` inserts at selection starts and `a` inserts after selections without deleting text
-- yanking in Extend returns to Normal mode
-- synchronized movement, selection, yank, delete, change, paste, and undo
-- UTF-8-aware cursor highlighting
-- buffer-local sessions with one undo block per multi-edit
+- Normal, Insert, and Extend modes with synchronized multi-cursor editing.
+- Create selections from the current word, native Visual text, vertical positions,
+  or all literal occurrences.
+- Synchronized movement, insert, yank, delete, change, paste, undo, `D`, `o`, and `O`.
+- Semantic region expansion and one-level shrink with session-local `v` / `V`.
+- Fast Lua and Extmark core with batched selection creation and queued Insert updates.
+- Compact statusline that follows the region under the real cursor.
+- UTF-8-aware, buffer-local sessions with configurable mappings and highlights.
 
 ## Installation
 
@@ -123,7 +115,7 @@ The plugin also loads with its defaults when `setup()` is not called explicitly.
 | `o` / `O` | Open a new line below / above every cursor and enter Insert mode |
 | `D` | Delete from every cursor to the end of its line and enter Insert mode |
 | `c d x y p u` | Edit all regions |
-| `<Esc>` | Return Extend to Normal, or end the session from Normal |
+| `<Esc>` | Restore the original Normal cursor positions, or end the session from Normal |
 
 Native Visual initialization currently accepts single-line characterwise
 selections. `<C-Left>` and `<C-Right>` remain available for plugin-managed

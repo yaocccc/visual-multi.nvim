@@ -193,17 +193,38 @@ function M.start(session, kind)
   else
     prepare(session, kind)
   end
+  session.extend_origins = {}
   session.mode = "insert"
   session.inserting = true
   session._insert_generation = (session._insert_generation or 0) + 1
   local generation = session._insert_generation
   local active = session.regions[session.active]
   local active_pos = session:_mark_pos(active.end_id)
+  local return_marks = {}
+  for _, region in ipairs(session.regions) do
+    local pos = session:_mark_pos(region.end_id)
+    if pos then
+      local return_pos = pos
+      if (kind == "a" or kind == "A") and pos.col > 0 then
+        return_pos = util.previous_position(session.buf, pos)
+      end
+      return_marks[region.id] = vim.api.nvim_buf_set_extmark(
+        session.buf,
+        session.track_ns,
+        return_pos.row,
+        return_pos.col,
+        { right_gravity = false, undo_restore = false, invalidate = false }
+      )
+    end
+  end
+
   local active_offset = util.position_to_offset(session.buf, active_pos)
   session.insert_state = {
     generation = generation,
     active_offset = active_offset,
     input_offset = active_offset,
+    return_marks = return_marks,
+    changed = false,
     queue = {},
     scheduled = false,
   }
@@ -223,6 +244,7 @@ function M.start(session, kind)
       if not state or state.generation ~= generation then
         return false
       end
+      state.changed = true
       state.queue[#state.queue + 1] = {
         relative_start = start_byte - state.input_offset,
         old_length = old_length,
@@ -261,6 +283,9 @@ end
 function M.paste(session)
   if not session.inserting or #session.regions == 0 then
     return
+  end
+  if session.insert_state then
+    session.insert_state.changed = true
   end
 
   local values = session.register
@@ -318,11 +343,24 @@ function M.stop(session)
   session.inserting = false
   session.mode = "normal"
   session._insert_generation = (session._insert_generation or 0) + 1
+  local state = session.insert_state
   session.insert_state = nil
 
   local positions = end_positions(session)
   for _, region in ipairs(session.regions) do
     local pos = positions[region.end_id]
+    local return_mark = state and state.return_marks and state.return_marks[region.id]
+    if state and not state.changed and return_mark then
+      local saved = vim.api.nvim_buf_get_extmark_by_id(session.buf, session.track_ns, return_mark, {})
+      if #saved > 0 then
+        pos = { row = saved[1], col = saved[2] }
+      end
+    elseif state and state.changed and pos and pos.col > 0 then
+      pos = util.previous_position(session.buf, pos)
+    end
+    if return_mark then
+      vim.api.nvim_buf_del_extmark(session.buf, session.track_ns, return_mark)
+    end
     if pos then
       session:_set_positions(region, pos, pos, false)
     end

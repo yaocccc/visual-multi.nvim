@@ -61,7 +61,29 @@ Sleep 600ms
 Escape
 Sleep 350ms
 Escape
-Sleep 1s
+Sleep 700ms
+
+# Demo 4: repeated semantic expansion with v -> synchronized replacement.
+Type "gg"
+Type "/dark"
+Enter
+Ctrl+Down
+Sleep 450ms
+Type "v"
+Sleep 250ms
+Type "v"
+Sleep 250ms
+Type "v"
+Sleep 250ms
+Type "v"
+Sleep 650ms
+Type "c"
+Type "('active')"
+Sleep 600ms
+Escape
+Sleep 350ms
+Escape
+Sleep 900ms
 
 Hide
 Type ":q!"

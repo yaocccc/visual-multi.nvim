@@ -87,6 +87,7 @@ function Session.new(buf)
     inserting = false,
     syncing = false,
     expansion_stack = {},
+    extend_origins = {},
     augroup = nil,
     saved_maps = {},
   }, Session)
@@ -205,8 +206,18 @@ function Session:add_region(start_pos, end_pos)
   return true
 end
 
-function Session:add_selection(start_pos, finish_pos)
+function Session:add_selection(start_pos, finish_pos, origin)
   local head = util.previous_position(self.buf, finish_pos)
+  local entering = self.mode ~= "extend"
+  if entering then
+    self.extend_origins = {}
+    for _, region in ipairs(self.regions) do
+      local _, current = self:raw_positions(region)
+      if current then
+        self.extend_origins[region.id] = current
+      end
+    end
+  end
   self.mode = "extend"
   local existing = self:_find_region(start_pos, finish_pos)
   if existing then
@@ -215,7 +226,14 @@ function Session:add_selection(start_pos, finish_pos)
     self:focus()
     return false
   end
-  return self:add_region(start_pos, head)
+  local added = self:add_region(start_pos, head)
+  if entering and origin then
+    local region = self.regions[self.active]
+    if region then
+      self.extend_origins[region.id] = origin
+    end
+  end
+  return added
 end
 
 function Session:sort_regions(active_id)
@@ -327,7 +345,7 @@ function Session:select_word()
     return false
   end
   self.pattern = word.text
-  return self:add_selection(word.start, word.finish)
+  return self:add_selection(word.start, word.finish, { row = cursor[1] - 1, col = cursor[2] })
 end
 
 function Session:_pattern_from_selection()
@@ -495,6 +513,13 @@ function Session:enter_extend()
     return
   end
   self.expansion_stack = {}
+  self.extend_origins = {}
+  for _, region in ipairs(self.regions) do
+    local _, head = self:raw_positions(region)
+    if head then
+      self.extend_origins[region.id] = head
+    end
+  end
   self.mode = "extend"
   self:sort_regions()
   self:render()
@@ -508,10 +533,12 @@ function Session:exit_extend()
   self.expansion_stack = {}
   for _, region in ipairs(self.regions) do
     local _, head = self:raw_positions(region)
-    if head then
-      self:_set_positions(region, head, head)
+    local origin = self.extend_origins[region.id] or head
+    if origin then
+      self:_set_positions(region, origin, origin)
     end
   end
+  self.extend_origins = {}
   self.mode = "normal"
   self:sort_regions()
   self:render()
@@ -797,6 +824,7 @@ function Session:_apply_edits(edits, _, deduplicate)
   end
 
   self.mode = "normal"
+  self.extend_origins = {}
   for _, edit in ipairs(edits) do
     local start_pos = self:_mark_pos(edit.region.start_id) or edit.start
     self:_set_positions(edit.region, start_pos, start_pos)
@@ -830,6 +858,7 @@ function Session:yank(keep_extend)
       self:_set_positions(region, head, head)
     end
     self.mode = "normal"
+    self.extend_origins = {}
     self:sort_regions()
     self:render()
     self:focus()
@@ -931,6 +960,7 @@ function Session:change_number(delta)
     end
   end
   self.mode = "normal"
+  self.extend_origins = {}
   self:sort_regions()
   self:render()
   self:focus()
